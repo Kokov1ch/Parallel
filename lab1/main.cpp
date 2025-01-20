@@ -3,11 +3,15 @@
 #include <omp.h>
 #include <thread>
 #include <fstream>
+#include "vector"
+
 const double N = 100'000'000;
+const size_t experiments = 10;
+
 
 double f(double x)
 {
-    return x * x + 3;
+    return x * x -1;
 }
 
 double integrate(double a, double b)
@@ -23,7 +27,7 @@ double integrate(double a, double b)
     return dx * sum;
 }
 
-double integrate_omp(double a, double b)
+double integrateParallel(double a, double b)
 {
     double sum = 0;
     double dx = (b - a) / N;
@@ -32,16 +36,16 @@ double integrate_omp(double a, double b)
     {
         unsigned t = omp_get_thread_num();
         unsigned T = omp_get_num_threads();
-        double local_sum = 0;
+        double threadSum = 0;
 
         for (size_t i = t; i < N; i += T)
         {
-            local_sum += f(a + i * dx);
+            threadSum += f(a + i * dx);
         }
 
 #pragma omp critical
         {
-            sum += local_sum;
+            sum += threadSum;
         }
     }
 
@@ -51,55 +55,57 @@ double integrate_omp(double a, double b)
 int main()
 {
     std::ofstream output("../output.csv");
+
     if (!output.is_open())
     {
-        std::cout << "Error. Could not open file!\n";
+        std::cout << "Couldn't open file!\n";
         return -1;
     }
 
-    const size_t thread_count = std::thread::hardware_concurrency();
-    const size_t trial_count = 20;
+    const size_t threadCount = std::thread::hardware_concurrency();
+
     const double a = 0;
     const double b = 1;
-    const double sToMs = 1'000;
 
-    size_t times[thread_count + 1];
-    double values[thread_count + 1];
+
+    std::vector<size_t> times(threadCount + 1);
+    std::vector<double> values(threadCount + 1);
 
     double t1 = 0, t2 = 0;
-    double total_time = 0;
+    double totalTime = 0;
+
     double result = 0;
 
-    for(size_t trial = 0; trial < trial_count; trial++){
+    for(size_t i = 0; i < experiments; ++i){
         double t1 = omp_get_wtime();
         result = integrate(a, b);
         double t2 = omp_get_wtime();
-        total_time += t2 - t1;
+        totalTime += t2 - t1;
     }
 
-    times[0] = sToMs * total_time / trial_count;
+    times[0] = 1000 * totalTime / experiments;
     values[0] = result;
 
-    for (std::size_t i = 1; i <= thread_count; i++)
+    for (std::size_t i = 1; i <= threadCount; i++)
     {
-        total_time = 0;
-        for(size_t trial = 0; trial < trial_count; trial++){
+        totalTime = 0;
+        for(size_t trial = 0; trial < experiments; trial++){
             omp_set_num_threads(i);
             t1 = omp_get_wtime();
-            result = integrate_omp(a, b);
+            result = integrateParallel(a, b);
             t2 = omp_get_wtime();
-            total_time += t2 - t1;
+            totalTime += t2 - t1;
         }
 
-        times[i] = sToMs * total_time / trial_count;
+        times[i] = 1000 * totalTime / experiments;
         values[i] = result;
     }
 
-    std::cout << "T\t| Duration\t| Value\n";
-    output << "T,Duration\n";
+    std::cout << "thread\t duration\t value\n";
+    output << "thread, duration\n";
 
-    for(size_t i = 0; i <= thread_count; i++){
-        std::cout << i << "\t| " << times[i] << "\t\t| " << values[i] << "\n";
+    for(size_t i = 0; i <= threadCount; i++){
+        std::cout << i << "\t " << times[i] << "\t\t " << values[i] << "\n";
         output << i << "," << times[i] << "\n";
     }
 
