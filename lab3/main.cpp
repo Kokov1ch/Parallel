@@ -8,9 +8,9 @@
 
 using namespace std;
 
-void mul_matrix(double* A, size_t cA, size_t rA,
-                const double* B, size_t cB, size_t rB,
-                const double* C, size_t cC, size_t rC)
+void mulMatrix(double* A, size_t cA, size_t rA,
+               const double* B, size_t cB, size_t rB,
+               const double* C, size_t cC, size_t rC)
 {
     assert(cB == rC && cA == cC && rA == rB);
     assert((cA & 0x3f) == 0);
@@ -28,10 +28,10 @@ void mul_matrix(double* A, size_t cA, size_t rA,
     }
 }
 
-void mul_matrix_avx2(double* A, const double* B, const double* C,
-                     size_t cA, size_t rA,
-                     size_t cB, size_t rB,
-                     size_t cC, size_t rC)
+void mulMatrix256(double* A, const double* B, const double* C,
+                   size_t cA, size_t rA,
+                   size_t cB, size_t rB,
+                   size_t cC, size_t rC)
 {
     assert(cB == rC && cA == cC && rA == rB);
     assert((cA & 0x3f) == 0);
@@ -55,7 +55,7 @@ void mul_matrix_avx2(double* A, const double* B, const double* C,
     }
 }
 
-//pair<vector<double>, vector<double>> get_permutation_matrix(size_t n)
+//pair<vector<double>, vector<double>> getPermutationMatrix(size_t n)
 //{
 //    vector<size_t> permut(n);
 //
@@ -77,7 +77,7 @@ void mul_matrix_avx2(double* A, const double* B, const double* C,
 //    return pair{ vf, vi };
 //}
 
-vector<double> get_permutation_matrix(size_t n)
+vector<double> getPermutationMatrix(size_t n)
 {
     vector<double> matrix(n * n);
     vector<size_t> permut(n);
@@ -96,7 +96,7 @@ vector<double> get_permutation_matrix(size_t n)
     return matrix;
 }
 
-vector<double> get_identity_matrix(size_t n)
+vector<double> getIdentityMatrix(size_t n)
 {
     vector<double> matrix(n * n);
 
@@ -135,33 +135,34 @@ int main(int argc, char** argv)
     //C(matrix_size * matrix_size, 0),
     D(matrix_size * matrix_size);
 
-    auto identity_matrix = get_identity_matrix(matrix_size);
-    auto permutation_matrix = get_permutation_matrix(matrix_size);
+    auto identity_matrix = getIdentityMatrix(matrix_size);
+    auto permutation_matrix = getPermutationMatrix(matrix_size);
 
     auto B = identity_matrix;
     auto C = permutation_matrix;
 
     //Perform naive multiplication.
     auto t1 = chrono::steady_clock::now();
-    mul_matrix(A.data(), matrix_size, matrix_size,
-               B.data(), matrix_size, matrix_size,
-               C.data(), matrix_size, matrix_size);
+    mulMatrix(A.data(), matrix_size, matrix_size,
+              B.data(), matrix_size, matrix_size,
+              C.data(), matrix_size, matrix_size);
     auto t2 = chrono::steady_clock::now();
     //show_matrix(A.data(), matrix_size, matrix_size);
-    cout << "Default: " << chrono::duration_cast<chrono::milliseconds>(t2 - t1).count() << " ms.\n";
+    cout << "Scalar: " << chrono::duration_cast<chrono::milliseconds>(t2 - t1).count() << " ms\n";
 
     //Perform vectorized multiplication.
     t1 = chrono::steady_clock::now();
-    mul_matrix_avx2(D.data(), B.data(), C.data(), matrix_size, matrix_size, matrix_size, matrix_size, matrix_size, matrix_size);
+    mulMatrix256(D.data(), B.data(), C.data(), matrix_size, matrix_size, matrix_size, matrix_size, matrix_size,
+                  matrix_size);
     t2 = chrono::steady_clock::now();
     //show_matrix(D.data(), matrix_size, matrix_size);
-    cout << "Vector: " << chrono::duration_cast<chrono::milliseconds>(t2 - t1).count() << " ms.\n";
+    cout << "Vector: " << chrono::duration_cast<chrono::milliseconds>(t2 - t1).count() << " ms\n";
 
     if (!std::memcmp(static_cast<void*>(A.data()),
                      static_cast<void*>(D.data()),
                      matrix_size * matrix_size * sizeof(double)))
     {
-        cout << "Matrices are equal.\n";
+        cout << "A = D\n";
     }
 
     show_matrix(A.data(), matrix_size, matrix_size);
