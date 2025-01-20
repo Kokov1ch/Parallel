@@ -11,7 +11,7 @@ int main(int argc, char** argv)
     std::ofstream output("../output.csv");
     if (!output.is_open())
     {
-        std::cout << "Error. Could not open file!\n";
+        std::cout << "Couldn't open file!\n";
         return -1;
     }
 
@@ -30,9 +30,9 @@ int main(int argc, char** argv)
     std::cout << "==Performance tests. ";
     auto measurements = run_experiments();
     std::cout << "Done==\n";
-    std::cout << std::setfill(' ') << std::setw(2) << "T:" << " |" << std::setw(3 + 2 * sizeof(IntegerWord)) << "Value:" << " | " <<
-              std::setw(14) << "Duration, ms:" << " | Acceleration:\n";
-    output << "T,Duration\n";
+    std::cout << std::setfill(' ') << std::setw(2) << "threads:" << " |" << std::setw(3 + 2 * sizeof(IntegerWord)) << "value:" << " | " <<
+              std::setw(14) << "duration, ms:" << " | acceleration:\n";
+    output << "threads,duration\n";
     for (std::size_t T = 1; T <= measurements.size(); ++T)
     {
         output << T << "," << measurements[T - 1].time.count() << "\n";

@@ -58,17 +58,17 @@ IntegerWord vector_mod(const IntegerWord* V, std::size_t N, IntegerWord mod) {
 	size_t T = get_num_threads();
 	std::vector<std::thread> threads(T - 1); //���������, ��� ������� ����� ��������� ������ � t=0
 	std::vector<partial_result_t> partial_results(T);
-	IntegerWord S = 0;
+
 	std::barrier<> bar(T);
 
 	auto thread_lambda = [V, N, T, mod, &partial_results, &bar](unsigned t) {
 		auto [b, e] = vector_thread_range(N, T, t);
 
 		IntegerWord sum = 0;
-		// ����� �������
+
 		for (std::size_t i = e; b < i;) {
 			//sum = (sum * x + V[e-1-i]) % mod;
-			sum = add_mod(times_word(sum, mod), V[--i], mod); // �� �� �����, �� ��� ������������
+			sum = add_mod(times_word(sum, mod), V[--i], mod);
 		}
 		partial_results[t].value = sum;
 		for (size_t i = 1, ii = 2; i < T; i = ii, ii += ii) {
@@ -80,7 +80,7 @@ IntegerWord vector_mod(const IntegerWord* V, std::size_t N, IntegerWord mod) {
 			}
 		}
 	};
-	// s ������
+
 	for (std::size_t i = 1; i < T; ++i) {
 		threads[i - 1] = std::thread(thread_lambda, i);
 	}
