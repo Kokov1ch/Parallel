@@ -4,10 +4,11 @@
 #include <vector>
 #include <immintrin.h>
 
-const int cols = 1 << 14;
-const int rows = 1 << 14;
+const int cols = 1 << 15;
+const int rows = 1 << 15;
+const size_t batch = 4;
 
-void add_matrix(double* A, const double* B, const double* C, size_t colsc, size_t rowsc)
+void addMatrix(double* A, const double* B, const double* C, size_t colsc, size_t rowsc)
 {
     for (size_t i = 0; i < colsc * rowsc; i++)
     {
@@ -15,17 +16,15 @@ void add_matrix(double* A, const double* B, const double* C, size_t colsc, size_
     }
 }
 
-void add_matrix_256(double* A, const double* B, const double* C, size_t colsc, size_t rowsc)
+void addMatrix256(double* A, const double* B, const double* C, size_t colsc, size_t rowsc)
 {
-    const size_t values_per_operation = 4;
-
-    for (size_t i = 0; i < rowsc * colsc / values_per_operation; i++)
+    for (size_t i = 0; i < rowsc * colsc / batch; i++)
     {
-        __m256d b = _mm256_loadu_pd(&(B[i * values_per_operation]));
-        __m256d c = _mm256_loadu_pd(&(C[i * values_per_operation]));
+        __m256d b = _mm256_loadu_pd(&(B[i * batch]));
+        __m256d c = _mm256_loadu_pd(&(C[i * batch]));
         __m256d a = _mm256_add_pd(b, c);
 
-        _mm256_storeu_pd(&(A[i * values_per_operation]), a);
+        _mm256_storeu_pd(&(A[i * batch]), a);
     }
 }
 
@@ -51,7 +50,7 @@ int main(int argc, char** argv)
     //    show_matrix(C.data(), cols, rows);
 
     auto t1 = std::chrono::steady_clock::now();
-    add_matrix(A.data(), B.data(), C.data(), cols, rows);
+    addMatrix(A.data(), B.data(), C.data(), cols, rows);
     auto t2 = std::chrono::steady_clock::now();
     //    show_matrix(A.data(), cols, rows);
     using namespace std::chrono;
@@ -62,7 +61,7 @@ int main(int argc, char** argv)
     std::fill_n(C.data(), rows * cols, 1);
 
     t1 = std::chrono::steady_clock::now();
-    add_matrix_256(A.data(), B.data(), C.data(), cols, rows);
+    addMatrix256(A.data(), B.data(), C.data(), cols, rows);
     t2 = std::chrono::steady_clock::now();
     //    show_matrix(A.data(), cols, rows);
     std::cout << "Vector: " << duration_cast<milliseconds>(t2 - t1).count() << " ms.\n";
