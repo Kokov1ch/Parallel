@@ -54,7 +54,7 @@ double integrateParallel(double a, double b)
 
 int main()
 {
-    std::ofstream output("../output.csv");
+    std::ofstream output("output.csv");
 
     if (!output.is_open())
     {
