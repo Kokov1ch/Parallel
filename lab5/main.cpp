@@ -53,10 +53,10 @@ void fft(const std::complex<double>* in, std::complex<double>* out, std::size_t 
     fft(in + n / 2, out + n / 2, n / 2);
     for(std::size_t i = 0; i < n / 2; i++){
         auto w = std::polar(1.0, -2.0 * i * std::numbers::pi_v<double> / n);
-        auto r1 = out[i];
-        auto r2 = out[i + n / 2];
-        out[i] = r1 + w * r2;
-        out[i + n / 2] = r1 - w * r2;
+        auto l = out[i];
+        auto r = out[i + n / 2];
+        out[i] = l + w * r;
+        out[i + n / 2] = l - w * r;
     }
 }
 
