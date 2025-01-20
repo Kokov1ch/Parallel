@@ -3,6 +3,7 @@
 #include <iostream>
 #include <vector>
 #include <immintrin.h>
+#include <fstream>
 
 const int cols = 1 << 15;
 const int rows = 1 << 15;
@@ -32,6 +33,13 @@ std::vector<double> B(cols* rows, 1), C(cols* rows, -2), A(cols* rows);
 
 int main(int argc, char** argv)
 {
+    std::ofstream output("../output.csv");
+
+    if (!output.is_open())
+    {
+        std::cout << "Couldn't open file!\n";
+        return -1;
+    }
     auto show_matrix = [](const double* A, size_t colsc, size_t rowsc)
     {
         for (size_t r = 0; r < rowsc; ++r)
@@ -54,7 +62,9 @@ int main(int argc, char** argv)
     auto t2 = std::chrono::steady_clock::now();
     //    show_matrix(A.data(), cols, rows);
     using namespace std::chrono;
-    std::cout << "Default: " << duration_cast<milliseconds>(t2 - t1).count() << " ms.\n";
+    output << "scalar, vector\n";
+    std::cout << "Scalar: " << duration_cast<milliseconds>(t2 - t1).count() << " ms.\n";
+    output << duration_cast<milliseconds>(t2 - t1).count() << ", ";
 
     std::fill_n(A.data(), rows * cols, 0);
     std::fill_n(B.data(), rows * cols, -2);
@@ -65,5 +75,8 @@ int main(int argc, char** argv)
     t2 = std::chrono::steady_clock::now();
     //    show_matrix(A.data(), cols, rows);
     std::cout << "Vector: " << duration_cast<milliseconds>(t2 - t1).count() << " ms.\n";
+    output << duration_cast<milliseconds>(t2 - t1).count();
+    output.close();
+
     return 0;
 }
