@@ -130,7 +130,7 @@ int main(int argc, char** argv)
 {
     srand(time(NULL));
 
-    std::ofstream output("../output.csv");
+    std::ofstream output("output.csv");
 
     if (!output.is_open())
     {
@@ -176,7 +176,7 @@ int main(int argc, char** argv)
     output << "scalar,vector\n";
 
     cout << "Scalar: " << chrono::duration_cast<chrono::milliseconds>(t2 - t1).count() << " ms\n";
-    output << duration_cast<chrono::milliseconds>(t2 - t1).count() << ",";
+    output << std::chrono::duration_cast<chrono::milliseconds>(t2 - t1).count() << ",";
 
     //Perform vectorized multiplication.
     t1 = chrono::steady_clock::now();
@@ -185,7 +185,7 @@ int main(int argc, char** argv)
     t2 = chrono::steady_clock::now();
     //show_matrix(D.data(), matrixSize, matrixSize);
     cout << "Vector: " << chrono::duration_cast<chrono::milliseconds>(t2 - t1).count() << " ms\n";
-    output << duration_cast<chrono::milliseconds>(t2 - t1).count();
+    output << std::chrono::duration_cast<chrono::milliseconds>(t2 - t1).count();
 
     if (!std::memcmp(static_cast<void*>(A.data()),
                      static_cast<void*>(D.data()),
