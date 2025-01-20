@@ -7,13 +7,16 @@
 #include <barrier>
 #include <fstream>
 
-void bit_shuffle(const std::complex<double>* in, std::complex<double>* out, std::size_t n){
-    std::size_t index_len = sizeof(n) * 8 - std::countl_zero(n) - 1;
+const size_t experiments = 5;
+const std::size_t N = 1 << 20;
+
+void bitShuffle(const std::complex<double>* in, std::complex<double>* out, std::size_t n){
+    std::size_t length = sizeof(n) * 8 - std::countl_zero(n) - 1;
     for(std::size_t i = 0; i < n; i++){
         std::size_t index = i;
         std::size_t newIndex = 0;
 
-        for(int j = 0; j < index_len; j++){
+        for(int j = 0; j < length; j++){
             newIndex <<= 1;
             newIndex += (index & 1);
             index >>= 1;
@@ -21,6 +24,23 @@ void bit_shuffle(const std::complex<double>* in, std::complex<double>* out, std:
 
         out[newIndex] = in[i];
     }
+}
+
+void printFft(std::complex<double>* out, size_t N){
+    std::cout << "Out:" << std::endl;
+    for(int i = 0; i < N; i++){
+        std::cout << round(100 * abs(out[i])) / 100 << " ";
+    }
+    std::cout << std::endl;
+}
+
+void printIfft(std::complex<double>* out, size_t N)
+{
+    std::cout << "IFFT:" << std::endl;
+    for(int i = 0; i < N; i++){
+        std::cout << std::fixed << out[i] / static_cast<std::complex<double>>(N) << " ";
+    }
+    std::cout << std::endl;
 }
 
 void fft(const std::complex<double>* in, std::complex<double>* out, std::size_t n){
@@ -40,11 +60,12 @@ void fft(const std::complex<double>* in, std::complex<double>* out, std::size_t 
     }
 }
 
-void parallel_fft(const std::complex<double>* in, std::complex<double>* out, std::size_t N, std::size_t T){
+void parallelFft(const std::complex<double>* in, std::complex<double>* out, std::size_t N, std::size_t T){
     std::vector<std::thread> threads(T - 1);
 
     std::barrier<> bar(T);
-    auto thread_lambda = [&in, &out, N, T, &bar](unsigned threadNumber) {
+
+    auto process = [&in, &out, N, T, &bar](unsigned threadNumber) {
         for(size_t i = threadNumber; i < N; i += T){
             out[i] = in[i];
         }
@@ -54,19 +75,19 @@ void parallel_fft(const std::complex<double>* in, std::complex<double>* out, std
             for (size_t start = threadNumber * n; start + n <= N; start += T * n) {
                 for (std::size_t i = 0; i < n / 2; i++) {
                     auto w = std::polar(1.0, -2.0 * i * std::numbers::pi_v<double> / n);
-                    auto r1 = out[start + i];
-                    auto r2 = out[start + i + n / 2];
-                    out[start + i] = r1 + w * r2;
-                    out[start + i + n / 2] = r1 - w * r2;
+                    auto l = out[start + i];
+                    auto r = out[start + i + n / 2];
+                    out[start + i] = l + w * r;
+                    out[start + i + n / 2] = l - w * r;
                 }
             }
         }
     };
 
     for (std::size_t i = 1; i < T; ++i) {
-        threads[i - 1] = std::thread(thread_lambda, i);
+        threads[i - 1] = std::thread(process, i);
     }
-    thread_lambda(0);
+    process(0);
 
     for (auto& i : threads) {
         i.join();
@@ -90,6 +111,14 @@ void ifft(const std::complex<double>* in, std::complex<double>* out, std::size_t
     }
 }
 
+void outFft(std::complex<double>* out){
+    std::cout << "Out:" << std::endl;
+    for(int i = 0; i < N; i++){
+        std::cout << round(100 * abs(out[i])) / 100 << " ";
+    }
+    std::cout << std::endl;
+}
+
 int main()
 {
     std::ofstream output("../output.csv");
@@ -99,78 +128,58 @@ int main()
         return -1;
     }
 
-    const std::size_t n = 1 << 20;
-    std::vector<std::complex<double>> in(n), shuffled_in(n);
-    std::vector<std::complex<double>> out(n), shuffled_out(n), iout(n);
+    std::vector<std::complex<double>> in(N), shuffled_in(N);
+    std::vector<std::complex<double>> out(N), shuffled_out(N), iout(N);
 
-//    for(int i = 0; i < n / 2; i++){
-//        in[i] = i;
-//        in[n - 1 - i] = i;
-//    }
-
-    for(int i = 0; i < n; i++){
+    for(int i = 0; i < N; i++){
         in[i] = i;
     }
 
-//    for(int i = 0; i < n; i++){
-//        in[i] = i + 1;
-//    }
+    bitShuffle(in.data(), shuffled_in.data(), N);
+    size_t threadCount = std::thread::hardware_concurrency();
 
-    bit_shuffle(in.data(), shuffled_in.data(), n);
-    size_t trials = 5;
-    size_t thread_count = std::thread::hardware_concurrency();
+    size_t result[threadCount + 1];
 
-    size_t result[thread_count + 1];
-
-    size_t recursive_time = 0;
-    for(int i = 0; i < trials; i++){
+    size_t durationRecursive = 0;
+    for(int i = 0; i < experiments; i++){
         auto tm0 = std::chrono::steady_clock::now();
-        fft(shuffled_in.data(), out.data(), n);
+        fft(shuffled_in.data(), out.data(), N);
         auto time = duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - tm0);
-        recursive_time += time.count();
-
-        // std::cout << "recursive [" << i + 1 << "]: " << time.count() << " ms." << std::endl;
+        durationRecursive += time.count();
     }
-    result[0] = recursive_time / trials;
+    result[0] = durationRecursive / experiments;
 
-    for(size_t i = 1; i <= thread_count; i++){
-        size_t parallel_time = 0;
-        for(int j = 0; j < trials; j++){
+    for(size_t i = 1; i <= threadCount; i++){
+        size_t durationParallel = 0;
+        for(int j = 0; j < experiments; j++){
             auto tm0 = std::chrono::steady_clock::now();
-            parallel_fft(shuffled_in.data(), out.data(), n, i);
+            parallelFft(shuffled_in.data(), out.data(), N, i);
             auto time = duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - tm0);
-            parallel_time += time.count();
+            durationParallel += time.count();
         }
 
-        result[i] = parallel_time / trials;
+        result[i] = durationParallel / experiments;
     }
 
-    std::cout << "T\t| Duration\t| Acceleration\n";
-    output << "T,Duration\n";
-    for(size_t i = 0; i <= thread_count; i++){
+
+
+    std::cout << "threads\t| duration\t| acceleration\n";
+    output << "threads,duration\n";
+    for(size_t i = 0; i <= threadCount; i++){
         std::cout << i << "\t| " << result[i] << "\t| " << std::fixed << result[0] / (double)result[i] << std::endl;
         output << i << "," << result[i] << "\n";
     }
 
-    // parallel_fft(shuffled_in.data(), out.data(), n, 1);
+    parallelFft(shuffled_in.data(), out.data(), N, 1);
 
-    // std::cout << "AVG parallel: " << sumPar / trials << " ms." << std::endl;
-    // std::cout << "AVG recursive: " << sumRec / trials << " ms." << std::endl;
 
-//    bit_shuffle(out.data(), shuffled_out.data(), n);
-//    ifft(shuffled_out.data(), iout.data(), n);
+    bitShuffle(out.data(), shuffled_out.data(), N);
+    ifft(shuffled_out.data(), iout.data(), N);
 
-//    std::cout << "Out:" << std::endl;
-//    for(int i = 0; i < n; i++){
-//        std::cout << round(100 * abs(out[i])) / 100 << " ";
-//    }
-//    std::cout << std::endl;
 
-//    std::cout << "IFFT:" << std::endl;
-//    for(int i = 0; i < n; i++){
-//        std::cout << std::fixed << iout[i] / static_cast<std::complex<double>>(n) << " ";
-//    }
-//    std::cout << std::endl;
+//    printFft(out.data(), N);
+//    printIfft(iout.data(), N);
 
     return 0;
 }
+
