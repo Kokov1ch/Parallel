@@ -33,7 +33,7 @@ std::vector<double> B(cols* rows, 1), C(cols* rows, -2), A(cols* rows);
 
 int main(int argc, char** argv)
 {
-    std::ofstream output("../output.csv");
+    std::ofstream output("output.csv");
 
     if (!output.is_open())
     {
