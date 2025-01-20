@@ -5,12 +5,23 @@
 #include <iostream>
 #include <vector>
 #include <cstring>
-
+#include "fstream"
 using namespace std;
 
-void mulMatrix(double* A, size_t cA, size_t rA,
-               const double* B, size_t cB, size_t rB,
-               const double* C, size_t cC, size_t rC)
+const size_t matrixSize = 64 * (1 << 4);
+
+
+void mulMatrix(
+        double* A,
+        size_t cA,
+        size_t rA,
+        const double* B,
+        size_t cB,
+        size_t rB,
+        const double* C,
+        size_t cC,
+        size_t rC
+        )
 {
     assert(cB == rC && cA == cC && rA == rB);
     assert((cA & 0x3f) == 0);
@@ -28,10 +39,17 @@ void mulMatrix(double* A, size_t cA, size_t rA,
     }
 }
 
-void mulMatrix256(double* A, const double* B, const double* C,
-                   size_t cA, size_t rA,
-                   size_t cB, size_t rB,
-                   size_t cC, size_t rC)
+void mulMatrix256(
+        double* A,
+        const double* B,
+        const double* C,
+        size_t cA,
+        size_t rA,
+        size_t cB,
+        size_t rB,
+        size_t cC,
+        size_t rC
+        )
 {
     assert(cB == rC && cA == cC && rA == rB);
     assert((cA & 0x3f) == 0);
@@ -55,7 +73,7 @@ void mulMatrix256(double* A, const double* B, const double* C,
     }
 }
 
-//pair<vector<double>, vector<double>> getPermutationMatrix(size_t n)
+//pair<vector<double>, vector<double>> get_permutation_matrix(size_t n)
 //{
 //    vector<size_t> permut(n);
 //
@@ -112,6 +130,14 @@ int main(int argc, char** argv)
 {
     srand(time(NULL));
 
+    std::ofstream output("../output.csv");
+
+    if (!output.is_open())
+    {
+        std::cout << "Couldn't open file!\n";
+        return -1;
+    }
+
     auto show_matrix = [](const double* A, size_t colsc, size_t rowsc)
     {
         return;
@@ -128,45 +154,48 @@ int main(int argc, char** argv)
         cout << "\n";
     };
 
-    const size_t matrix_size = 64 * (1 << 4);
+    vector<double> A(matrixSize * matrixSize),
+    //B(matrixSize * matrixSize, 0),
+    //C(matrixSize * matrixSize, 0),
+    D(matrixSize * matrixSize);
 
-    vector<double> A(matrix_size * matrix_size),
-    //B(matrix_size * matrix_size, 0),
-    //C(matrix_size * matrix_size, 0),
-    D(matrix_size * matrix_size);
+    auto identity = getIdentityMatrix(matrixSize);
+    auto permutation = getPermutationMatrix(matrixSize);
 
-    auto identity_matrix = getIdentityMatrix(matrix_size);
-    auto permutation_matrix = getPermutationMatrix(matrix_size);
-
-    auto B = identity_matrix;
-    auto C = permutation_matrix;
+    vector<double> B = identity;
+    vector<double> C = permutation;
 
     //Perform naive multiplication.
     auto t1 = chrono::steady_clock::now();
-    mulMatrix(A.data(), matrix_size, matrix_size,
-              B.data(), matrix_size, matrix_size,
-              C.data(), matrix_size, matrix_size);
+    mulMatrix(A.data(), matrixSize, matrixSize,
+              B.data(), matrixSize, matrixSize,
+              C.data(), matrixSize, matrixSize);
     auto t2 = chrono::steady_clock::now();
-    //show_matrix(A.data(), matrix_size, matrix_size);
+    //show_matrix(A.data(), matrixSize, matrixSize);
+
+    output << "scalar,vector\n";
+
     cout << "Scalar: " << chrono::duration_cast<chrono::milliseconds>(t2 - t1).count() << " ms\n";
+    output << duration_cast<chrono::milliseconds>(t2 - t1).count() << ",";
 
     //Perform vectorized multiplication.
     t1 = chrono::steady_clock::now();
-    mulMatrix256(D.data(), B.data(), C.data(), matrix_size, matrix_size, matrix_size, matrix_size, matrix_size,
-                  matrix_size);
+    mulMatrix256(D.data(), B.data(), C.data(), matrixSize, matrixSize, matrixSize, matrixSize, matrixSize,
+                 matrixSize);
     t2 = chrono::steady_clock::now();
-    //show_matrix(D.data(), matrix_size, matrix_size);
+    //show_matrix(D.data(), matrixSize, matrixSize);
     cout << "Vector: " << chrono::duration_cast<chrono::milliseconds>(t2 - t1).count() << " ms\n";
+    output << duration_cast<chrono::milliseconds>(t2 - t1).count();
 
     if (!std::memcmp(static_cast<void*>(A.data()),
                      static_cast<void*>(D.data()),
-                     matrix_size * matrix_size * sizeof(double)))
+                     matrixSize * matrixSize * sizeof(double)))
     {
         cout << "A = D\n";
     }
 
-    show_matrix(A.data(), matrix_size, matrix_size);
-    show_matrix(D.data(), matrix_size, matrix_size);
+    show_matrix(A.data(), matrixSize, matrixSize);
+    show_matrix(D.data(), matrixSize, matrixSize);
 
     return 0;
 }
